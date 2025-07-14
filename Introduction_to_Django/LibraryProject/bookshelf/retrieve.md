@@ -1,5 +1,5 @@
 from library_books.models import Book
-
+"Book.objects.get", "1984"]
 all_books = Book.objects.all()
 print(all_books)
 
