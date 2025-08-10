@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticate
 from rest_framework.filters import SearchFilter, OrderingFilter  # Ensure SearchFilter and OrderingFilter are correctly imported
 from .models import Book
 from .serializers import BookSerializer
+from django_filters import rest_framework
 
 
 filter_backends = [filters.DjangoFilterBackend, SearchFilter, OrderingFilter]  # Correct usage of filters.OrderingFilter and filters.SearchFilter
@@ -38,5 +39,6 @@ class DeleteView(generics.DestroyAPIView):
     serializer_class = BookSerializer
     permission_classes = [IsAuthenticated]
 # Create your views here.
+
 
 
