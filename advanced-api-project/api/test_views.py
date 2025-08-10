@@ -3,7 +3,8 @@ from django.urls import path, include
 from django.contrib.auth.models import User
 from .models import Book
 
-def setUp(self):
+class BookAPITestCase(APITestCase):
+        def setUp(self):
         
         self.user = User.objects.create_user(username='testuser', password='password')
         self.cllint =APIClient()
@@ -16,5 +17,6 @@ def setUp(self):
         self.url_list = '/api/books/'
         self.url_detail = f'/api/books/{self.book.id}/'
         self.client.login(username='testuser', password='password')
+
 
 
