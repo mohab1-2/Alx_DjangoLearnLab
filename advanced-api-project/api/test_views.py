@@ -2,6 +2,7 @@ from rest_framework.test import APITestCase, APIClient
 from django.urls import path, include
 from django.contrib.auth.models import User
 from .models import Book
+from rest_framework import status
 
 class BookAPITestCase(APITestCase):
         def setUp(self):
@@ -17,6 +18,7 @@ class BookAPITestCase(APITestCase):
         self.url_list = '/api/books/'
         self.url_detail = f'/api/books/{self.book.id}/'
         self.client.login(username='testuser', password='password')
+
 
 
 
