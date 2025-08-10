@@ -5,6 +5,11 @@ from .models import Book
 from .serializers import BookSerializer
 
 
+filter_backends = [filters.DjangoFilterBackend, SearchFilter, OrderingFilter]  # Correct usage of filters.OrderingFilter and filters.SearchFilter
+filterset_fields = ['title', 'author', 'publication_year']  # Filtering fields
+search_fields = ['title', 'author']  # Search fields
+ordering_fields = ['title', 'publication_year']  # Ordering fields
+
 class ListView(generics.ListAPIView):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
@@ -33,4 +38,5 @@ class DeleteView(generics.DestroyAPIView):
     serializer_class = BookSerializer
     permission_classes = [IsAuthenticated]
 # Create your views here.
+
 
