@@ -1,8 +1,56 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate
+from .models import Post
 
+# Post Form for creating and updating blog posts
+class PostForm(forms.ModelForm):
+    title = forms.CharField(
+        max_length=200,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter post title...'
+        })
+    )
+    content = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 10,
+            'placeholder': 'Write your post content here...'
+        })
+    )
+    published = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Check to publish this post immediately'
+    )
+
+    class Meta:
+        model = Post
+        fields = ['title', 'content', 'published']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add custom styling and help text
+        self.fields['title'].help_text = 'Choose a catchy title for your post'
+        self.fields['content'].help_text = 'Write engaging content for your readers'
+
+    def clean_title(self):
+        title = self.cleaned_data.get('title')
+        if len(title) < 5:
+            raise forms.ValidationError('Title must be at least 5 characters long.')
+        return title
+
+    def clean_content(self):
+        content = self.cleaned_data.get('content')
+        if len(content) < 20:
+            raise forms.ValidationError('Content must be at least 20 characters long.')
+        return content
+
+# Enhanced User Registration Form (extends the authentication forms)
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(
         required=True,
@@ -58,7 +106,7 @@ class CustomUserCreationForm(UserCreationForm):
             user.save()
         return user
 
-# NEW: Profile Edit Form
+# Profile Update Form
 class ProfileEditForm(forms.ModelForm):
     email = forms.EmailField(
         required=True,
@@ -93,53 +141,3 @@ class ProfileEditForm(forms.ModelForm):
         if User.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("This email is already in use.")
         return email
-
-# NEW: Password Change Form
-class CustomPasswordChangeForm(forms.Form):
-    old_password = forms.CharField(
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Current password'
-        }),
-        label="Current Password"
-    )
-    new_password1 = forms.CharField(
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'New password'
-        }),
-        label="New Password"
-    )
-    new_password2 = forms.CharField(
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Confirm new password'
-        }),
-        label="Confirm New Password"
-    )
-
-    def __init__(self, user, *args, **kwargs):
-        self.user = user
-        super().__init__(*args, **kwargs)
-
-    def clean_old_password(self):
-        old_password = self.cleaned_data.get('old_password')
-        if not self.user.check_password(old_password):
-            raise forms.ValidationError("Your current password is incorrect.")
-        return old_password
-
-    def clean(self):
-        cleaned_data = super().clean()
-        new_password1 = cleaned_data.get('new_password1')
-        new_password2 = cleaned_data.get('new_password2')
-
-        if new_password1 and new_password2:
-            if new_password1 != new_password2:
-                raise forms.ValidationError("The two password fields didn't match.")
-        return cleaned_data
-
-    def save(self):
-        password = self.cleaned_data['new_password1']
-        self.user.set_password(password)
-        self.user.save()
-        return self.user
