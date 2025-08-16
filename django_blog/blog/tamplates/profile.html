@@ -1,0 +1,70 @@
+{% extends 'registration/base.html' %}
+
+{% block title %}Profile - {{ user.first_name }} {{ user.last_name }}{% endblock %}
+
+{% block content %}
+<div class="auth-header">
+    <div class="profile-avatar">
+        <i class="fas fa-user"></i>
+    </div>
+    <h2>Welcome, {{ user.first_name }}!</h2>
+    <p>Manage your account information</p>
+</div>
+
+<div class="profile-info">
+    <div class="row mb-3">
+        <div class="col-sm-4">
+            <strong><i class="fas fa-user me-2"></i>Full Name:</strong>
+        </div>
+        <div class="col-sm-8">
+            {{ user.first_name }} {{ user.last_name }}
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-sm-4">
+            <strong><i class="fas fa-at me-2"></i>Username:</strong>
+        </div>
+        <div class="col-sm-8">
+            {{ user.username }}
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-sm-4">
+            <strong><i class="fas fa-envelope me-2"></i>Email:</strong>
+        </div>
+        <div class="col-sm-8">
+            {{ user.email }}
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-sm-4">
+            <strong><i class="fas fa-calendar me-2"></i>Member Since:</strong>
+        </div>
+        <div class="col-sm-8">
+            {{ user.date_joined|date:"F d, Y" }}
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-sm-4">
+            <strong><i class="fas fa-clock me-2"></i>Last Login:</strong>
+        </div>
+        <div class="col-sm-8">
+            {% if user.last_login %}
+                {{ user.last_login|date:"F d, Y - g:i A" }}
+            {% else %}
+                Never
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="d-grid gap-2">
+    <a href="{% url 'logout' %}" class="btn btn-outline-danger">
+        <i class="fas fa-sign-out-alt me-2"></i>Logout
+    </a>
+</div>
+{% endblock %}
