@@ -1,95 +1,92 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth import login, authenticate, logout, update_session_auth_hash
-from django.contrib.auth.forms import AuthenticationForm
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
-from .forms import CustomUserCreationForm, ProfileEditForm, CustomPasswordChangeForm
+from django.views.generic import (
+    ListView, 
+    DetailView, 
+    CreateView, 
+    UpdateView, 
+    DeleteView
+)
+from django.urls import reverse_lazy
+from .models import Post
+from .forms import PostForm
 
-def register_view(request):
-    if request.user.is_authenticated:
-        return redirect('profile')
-    
-    if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            username = form.cleaned_data.get('username')
-            messages.success(request, f'Account created successfully for {username}!')
-            login(request, user)
-            return redirect('profile')
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = CustomUserCreationForm()
-    
-    return render(request, 'registration/register.html', {'form': form})
+# ListView - Display all blog posts
+class PostListView(ListView):
+    model = Post
+    template_name = 'blog/post_list.html'
+    context_object_name = 'posts'
+    paginate_by = 5
+    ordering = ['-created_at']
 
-def login_view(request):
-    if request.user.is_authenticated:
-        return redirect('profile')
-    
-    if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(username=username, password=password)
-            if user is not None:
-                login(request, user)
-                messages.success(request, f"Welcome back, {user.first_name or username}!")
-                next_page = request.GET.get('next', 'profile')
-                return redirect(next_page)
-            else:
-                messages.error(request, "Invalid username or password.")
-        else:
-            messages.error(request, "Please correct the errors below.")
-    else:
-        form = AuthenticationForm()
-    
-    form.fields['username'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Username'})
-    form.fields['password'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Password'})
-    
-    return render(request, "registration/login.html", {"form": form})
+    def get_queryset(self):
+        return Post.objects.filter(published=True)
 
-def logout_view(request):
-    user_name = request.user.first_name or request.user.username
-    logout(request)
-    messages.success(request, f"Goodbye {user_name}! You have been logged out successfully.") 
-    return redirect('login')
+# DetailView - Show individual blog posts
+class PostDetailView(DetailView):
+    model = Post
+    template_name = 'blog/post_detail.html'
+    context_object_name = 'post'
 
+# CreateView - Allow authenticated users to create new posts
+class PostCreateView(LoginRequiredMixin, CreateView):
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/post_form.html'
+    success_url = reverse_lazy('post_list')
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        messages.success(self.request, 'Your post has been created successfully!')
+        return super().form_valid(form)
+
+# UpdateView - Let authors edit their posts
+class PostUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/post_form.html'
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        messages.success(self.request, 'Your post has been updated successfully!')
+        return super().form_valid(form)
+
+    def test_func(self):
+        post = self.get_object()
+        return self.request.user == post.author
+
+# DeleteView - Let authors delete their posts
+class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Post
+    template_name = 'blog/post_confirm_delete.html'
+    success_url = reverse_lazy('post_list')
+
+    def test_func(self):
+        post = self.get_object()
+        return self.request.user == post.author
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(self.request, 'Your post has been deleted successfully!')
+        return super().delete(request, *args, **kwargs)
+
+# Function-based views for additional functionality
 @login_required
-def profile_view(request):
-    return render(request, 'registration/profile.html', {'user': request.user})
+def user_posts_view(request):
+    """Display posts by the current user"""
+    user_posts = Post.objects.filter(author=request.user).order_by('-created_at')
+    context = {
+        'posts': user_posts,
+        'title': 'My Posts'
+    }
+    return render(request, 'blog/user_posts.html', context)
 
-# NEW: Profile Edit View
-@login_required
-def edit_profile_view(request):
-    if request.method == 'POST':
-        form = ProfileEditForm(request.POST, instance=request.user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Your profile has been updated successfully!')
-            return redirect('profile')
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = ProfileEditForm(instance=request.user)
-    
-    return render(request, 'registration/edit_profile.html', {'form': form})
-
-# NEW: Password Change View
-@login_required
-def change_password_view(request):
-    if request.method == 'POST':
-        form = CustomPasswordChangeForm(request.user, request.POST)
-        if form.is_valid():
-            form.save()
-            update_session_auth_hash(request, request.user)  # Important!
-            messages.success(request, 'Your password has been changed successfully!')
-            return redirect('profile')
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = CustomPasswordChangeForm(request.user)
-    
-    return render(request, 'registration/change_password.html', {'form': form})
+def home_view(request):
+    """Home page view"""
+    recent_posts = Post.objects.filter(published=True)[:3]
+    context = {
+        'posts': recent_posts,
+        'title': 'Welcome to Django Blog'
+    }
+    return render(request, 'blog/home.html', context)
