@@ -1,19 +1,23 @@
 from django.urls import path
-from django.contrib.auth import views as auth_views
 from . import views
+from .views import PostListView, PostDetailView, PostCreateView, PostDeleteView, PostUpdateView
+from django.contrib.auth import views as auth_views
+from .views import post_list, PostByTagListView
 
-app_name = 'blog'
 
 urlpatterns = [
-    # Blog URLs
-    path('', views.index, name='index'),
-    
-    # Authentication URLs (using Django's built-in views and your custom views)
-    path('login/', auth_views.LoginView.as_view(template_name='blog/login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('register/', views.register_view, name='register'),
-    
-    # Profile URLs
-    path('profile/', views.profile_view, name='profile'),
-    path('profile/edit/', views.profile_edit_view, name='profile_edit'),
+    path('register/', views.register, name='register'),
+    path('', PostListView.as_view(), name='posts'),
+    path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('profile/', views.profile, name='profile'),  
+    path('posts/', PostListView.as_view(), name='posts'),
+    path('post/<int:pk>/', PostDetailView.as_view(), name='post-detail'),
+    path('post/new/', PostCreateView.as_view(), name='post-create'),  
+    path('post/<int:pk>/update/', PostUpdateView.as_view(), name='post-update'),   
+    path('post/<int:pk>/delete/', PostDeleteView.as_view(), name='post-delete'),
+    path('post/<int:pk>/comments/new/', views.add_comment, name='add_comment'),
+    path('comment/<int:pk>/update/', views.edit_comment, name='edit_comment'),
+    path('comment/<int:pk>/delete/', views.delete_comment, name='delete_comment'),
+    path('tags/<slug:tag_slug>/', PostByTagListView.as_view(), name='posts_by_tag'),
+    path('search/', views.post_list, name='search_posts'),
 ]
