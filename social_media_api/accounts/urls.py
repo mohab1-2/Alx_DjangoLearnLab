@@ -1,13 +1,17 @@
 from django.urls import path
-from . import views
+from .views import RegisterView, LoginView, ProfileView
 
-app_name = 'accounts'
+# You can also import the function-based views if you prefer:
+# from .views import register_user, login_user, user_profile
 
 urlpatterns = [
-    path('register/', views.UserRegistrationView.as_view(), name='register'),
-    path('login/', views.user_login, name='login'),
-    path('profile/', views.UserProfileView.as_view(), name='profile'),
-    path('user/<str:username>/', views.UserDetailView.as_view(), name='user_detail'),
-    path('follow/<str:username>/', views.follow_user, name='follow_user'),
-    path('token/', views.get_token, name='get_token'),
+    # Class-based views
+    path('register/', RegisterView.as_view(), name='user-register'),
+    path('login/', LoginView.as_view(), name='user-login'),
+    path('profile/', ProfileView.as_view(), name='user-profile'),
+    
+    # Alternative: Function-based views (uncomment if you prefer these)
+    # path('register/', register_user, name='user-register'),
+    # path('login/', login_user, name='user-login'),
+    # path('profile/', user_profile, name='user-profile'),
 ]
