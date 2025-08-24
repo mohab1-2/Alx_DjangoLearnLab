@@ -1,17 +1,18 @@
+# accounts/urls.py
 from django.urls import path
-from .views import RegisterView, LoginView, ProfileView
-
-# You can also import the function-based views if you prefer:
-# from .views import register_user, login_user, user_profile
+from . import views
 
 urlpatterns = [
-    # Class-based views
-    path('register/', RegisterView.as_view(), name='user-register'),
-    path('login/', LoginView.as_view(), name='user-login'),
-    path('profile/', ProfileView.as_view(), name='user-profile'),
+    # Existing authentication URLs
+    path('register/', views.register, name='register'),
+    path('login/', views.login, name='login'),
+    path('profile/', views.profile, name='profile'),
     
-    # Alternative: Function-based views (uncomment if you prefer these)
-    # path('register/', register_user, name='user-register'),
-    # path('login/', login_user, name='user-login'),
-    # path('profile/', user_profile, name='user-profile'),
+    # Follow management URLs
+    path('follow/<int:user_id>/', views.follow_user, name='follow_user'),
+    path('unfollow/<int:user_id>/', views.unfollow_user, name='unfollow_user'),
+    path('following/', views.user_following, name='user_following'),
+    path('following/<int:user_id>/', views.user_following, name='user_following_by_id'),
+    path('followers/', views.user_followers, name='user_followers'),
+    path('followers/<int:user_id>/', views.user_followers, name='user_followers_by_id'),
 ]
