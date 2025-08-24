@@ -1,86 +1,106 @@
-from rest_framework import status, generics, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from django.contrib.auth import authenticate, login
-from django.shortcuts import get_object_or_404
-from .models import CustomUser
-from .serializers import (
-    UserRegistrationSerializer, 
-    UserLoginSerializer, 
-    UserProfileSerializer,
-    UserUpdateSerializer
-)
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from django.contrib.auth import authenticate, get_user_model
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserSerializer
 
-class UserRegistrationView(generics.CreateAPIView):
-    queryset = CustomUser.objects.all()
+User = get_user_model()
+
+class RegisterView(generics.CreateAPIView):
+    """User registration view"""
+    queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
-    permission_classes = [permissions.AllowAny]
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        
-        # Create token for the new user
-        token, created = Token.objects.get_or_create(user=user)
-        
-        return Response({
-            'message': 'User registered successfully',
-            'token': token.key,
-            'user': UserProfileSerializer(user).data
-        }, status=status.HTTP_201_CREATED)
+        if serializer.is_valid():
+            user = serializer.create_user(serializer.validated_data)
+            token, created = Token.objects.get_or_create(user=user)
+            return Response({
+                'user': UserSerializer(user).data,
+                'token': token.key,
+                'message': 'User created successfully'
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-def user_login(request):
-    serializer = UserLoginSerializer(data=request.data)
-    if serializer.is_valid():
-        user = serializer.validated_data['user']
-        login(request, user)
-        
-        # Get or create token
-        token, created = Token.objects.get_or_create(user=user)
-        
-        return Response({
-            'message': 'Login successful',
-            'token': token.key,
-            'user': UserProfileSerializer(user).data
-        }, status=status.HTTP_200_OK)
+class LoginView(generics.GenericAPIView):
+    """User login view"""
+    serializer_class = UserLoginSerializer
     
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data['user']
+            token, created = Token.objects.get_or_create(user=user)
+            return Response({
+                'user': UserSerializer(user).data,
+                'token': token.key,
+                'message': 'Login successful'
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class UserProfileView(generics.RetrieveUpdateAPIView):
-    serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class ProfileView(generics.RetrieveUpdateAPIView):
+    """User profile view - get and update user profile"""
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
     
     def get_object(self):
         return self.request.user
+        
+    def get(self, request, *args, **kwargs):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    def put(self, request, *args, **kwargs):
+        serializer = self.get_serializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class UserDetailView(generics.RetrieveAPIView):
-    queryset = CustomUser.objects.all()
-    serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    lookup_field = 'username'
+# Alternative function-based views (you can use either class-based or function-based)
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def follow_user(request, username):
-    user_to_follow = get_object_or_404(CustomUser, username=username)
-    current_user = request.user
-    
-    if current_user == user_to_follow:
-        return Response({'error': 'You cannot follow yourself'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    if user_to_follow in current_user.following.all():
-        current_user.following.remove(user_to_follow)
-        return Response({'message': f'Unfollowed {username}'}, status=status.HTTP_200_OK)
-    else:
-        current_user.following.add(user_to_follow)
-        return Response({'message': f'Started following {username}'}, status=status.HTTP_200_OK)
+def register_user(request):
+    """Function-based registration view"""
+    serializer = UserRegistrationSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.create_user(serializer.validated_data)
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({
+            'user': UserSerializer(user).data,
+            'token': token.key,
+            'message': 'User registered successfully'
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def get_token(request):
-    token, created = Token.objects.get_or_create(user=request.user)
-    return Response({'token': token.key}, status=status.HTTP_200_OK)
+@api_view(['POST'])
+def login_user(request):
+    """Function-based login view"""
+    serializer = UserLoginSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.validated_data['user']
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({
+            'user': UserSerializer(user).data,
+            'token': token.key,
+            'message': 'Login successful'
+        }, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def user_profile(request):
+    """Function-based profile view"""
+    if request.method == 'GET':
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    elif request.method == 'PUT':
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
