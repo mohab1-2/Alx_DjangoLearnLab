@@ -1,28 +1,34 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
-from .models import CustomUser
+from rest_framework.authtoken.models import Token
+from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth.password_validation import validate_password
+
+User = get_user_model()
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
     
     class Meta:
-        model = CustomUser
-        fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name', 'bio']
-    
+        model = User
+        fields = ('username', 'email', 'password', 'password_confirm', 'bio', 'profile_picture')
+        
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError("Passwords don't match")
         return attrs
     
-    def create(self, validated_data):
+    def create_user(self, validated_data):
+        """Create a new user and return the token"""
         validated_data.pop('password_confirm')
-        user = CustomUser.objects.create_user(**validated_data)
+        user = User.objects.create_user(**validated_data)
+        # Create token for the user
+        Token.objects.create(user=user)
         return user
 
 class UserLoginSerializer(serializers.Serializer):
     username = serializers.CharField()
-    password = serializers.CharField()
+    password = serializers.CharField(write_only=True)
     
     def validate(self, attrs):
         username = attrs.get('username')
@@ -32,23 +38,22 @@ class UserLoginSerializer(serializers.Serializer):
             user = authenticate(username=username, password=password)
             if not user:
                 raise serializers.ValidationError('Invalid credentials')
+            if not user.is_active:
+                raise serializers.ValidationError('User account is disabled')
             attrs['user'] = user
-        else:
-            raise serializers.ValidationError('Must include username and password')
-        
         return attrs
 
-class UserProfileSerializer(serializers.ModelSerializer):
-    followers_count = serializers.ReadOnlyField()
-    following_count = serializers.ReadOnlyField()
+class UserSerializer(serializers.ModelSerializer):
+    followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
     
     class Meta:
-        model = CustomUser
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'bio', 
-                 'profile_picture', 'followers_count', 'following_count', 'date_joined']
-        read_only_fields = ['id', 'date_joined']
-
-class UserUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ['first_name', 'last_name', 'bio', 'profile_picture']
+        model = User
+        fields = ('id', 'username', 'email', 'bio', 'profile_picture', 'followers_count', 'following_count')
+        read_only_fields = ('id', 'followers_count', 'following_count')
+        
+    def get_followers_count(self, obj):
+        return obj.followers.count()
+        
+    def get_following_count(self, obj):
+        return obj.following.count()
