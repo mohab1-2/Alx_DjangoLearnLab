@@ -2,21 +2,12 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 
-# Option 1: Using class-based views (recommended)
+# Create a router and register our viewsets with it
+router = DefaultRouter()
+router.register(r'posts', views.PostViewSet, basename='post')
+router.register(r'comments', views.CommentViewSet, basename='comment')
+
+# The API URLs are now determined automatically by the router
 urlpatterns = [
-    # Post URLs
-    path('', views.PostListCreateView.as_view(), name='post-list-create'),
-    path('<int:pk>/', views.PostDetailView.as_view(), name='post-detail'),
-    
-    # Comment URLs - nested under posts
-    path('<int:post_pk>/comments/', views.CommentListCreateView.as_view(), name='post-comments'),
-    
-    # Comment URLs - direct access
-    path('comments/<int:pk>/', views.CommentDetailView.as_view(), name='comment-detail'),
+    path('', include(router.urls)),
 ]
-
-
-
-
-
-
